@@ -9,7 +9,7 @@ import re
 
 from snorkel.annotations import load_gold_labels
 from snorkel.learning.utils import MentionScorer
-from snorkel.models import Span, Label, Candidate
+from snorkel.models import Span, Label, Candidate, Sentence
 from itertools import chain
 from snorkel.utils import tokens_to_ngrams
 
@@ -91,6 +91,23 @@ def get_between_tokens(c, attrib='words', n_max=1, case_sensitive=False):
     return get_right_tokens(left_span, window=dist_btwn, attrib=attrib,
         n_max=n_max, case_sensitive=case_sensitive)
 
+#TODO: Get all tokens for candidates more than 2 sentences apart
+def get_tokens(c, session, attrib='words', n_max=1, case_sensitive=False):
+    sentences = self.get_sentences
+    num_sentences = len(sentences)
+    if num_sentences == 1:
+        return get_between_tokens(c)
+
+def get_sentences(c, session, attrib='words', n_max=1, case_sensitive=False):
+    """
+    Returns all sentences associated with a candidate
+    """
+    parents = c.get_unique_parents()
+    if len(parents) == 1:
+        return [c.get_parent()]   
+    positions = [parent.position for parent in parents]
+    doc_id = parents[0].document_id
+    return session.query(Sentence).filter(Sentence.document_id == doc_id).filter(Sentence.position >= min(positions)).filter(Sentence.position <= max(positions)).oder_by(Sentence.position).all()                                  
 
 def get_left_tokens(c, window=3, attrib='words', n_max=1, case_sensitive=False):
     """
