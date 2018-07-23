@@ -36,6 +36,18 @@ def scrub(s):
     return ''.join(c for c in s if ord(c) < 128)
 
 
+# def candidate_to_tokens(candidate, token_type='words'):
+#     tokens = candidate.get_parent().__dict__[token_type]
+#     print(tokens)
+#     return [scrub(w).lower() for w in tokens]
+
 def candidate_to_tokens(candidate, token_type='words'):
-    tokens = candidate.get_parent().__dict__[token_type]
+    
+    if candidate.is_parent_unique():
+        tokens = candidate.get_parent().__dict__[token_type]
+    else:
+        tokens = []
+        for parent in candidate.get_parents():
+            tokens.extend(parent.__dict__[token_type])   
+    
     return [scrub(w).lower() for w in tokens]
