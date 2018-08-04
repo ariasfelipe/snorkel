@@ -24,7 +24,7 @@ def number_of_people(sentence):
 
 def load_external_labels(session, candidate_class, annotator_name='gold'):
     gold_labels = pd.read_csv(FPATH, sep="\t")
-    for index, row in gold_labels.iterrows():    
+    for index, row in gold_labels.iterrows():   
 
         # We check if the label already exists, in case this cell was already executed
         context_stable_ids = "~~".join([row['person1'], row['person2']])
