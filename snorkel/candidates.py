@@ -186,7 +186,7 @@ class CrossContextCandidateExtractorUDF(UDF):
 
         super(CrossContextCandidateExtractorUDF, self).__init__(**kwargs)
 
-    def apply(self, context_list, clear, split, window_size, thresholds, exclusive=False, **kwargs):
+    def apply(self, context_list, clear, split, window_size, thresholds, cand_lengths=None, **kwargs):
         # Generate TemporaryContexts that are children of the contexts using the candidate_space and filtered
         # by the Matcher
 
@@ -194,20 +194,8 @@ class CrossContextCandidateExtractorUDF(UDF):
         :param window_size: Number of adjacent contexts to extract candidates from at once
         :param thresholds: Maximum numbers of detections for each matcher
         """
-
-        # if 'window_size' not in kwargs:
-        #     window_size = 1
-        # elif isinstance(kwargs['window_size'], int) and kwargs['window_size'] >= 1:
-        #     window_size = kwargs['window_size']
-        # else:
-        #     raise ValueError('Window size must be an integer greater than 0.')
-            
-        # if 'thresholds' not in kwargs:
-        #     thresholds = [5 for i in range(self.arity)]
-        # elif isinstance(kwargs['thresholds'], list) and all(isinstance(i, int) and i >= 1 for i in kwargs['thresholds']):
-        #     thresholds = kwargs['thresholds']
-        # else:
-        #     raise ValueError('Thresholds must be a list of integers greater than 0.')
+        if cand_lengths is not None and any([cand_length <= 0 or cand_length > window_size for cand_length in cand_lengths]):
+            raise ValueError("One of more lengths for candidates is out range.")
 
         list_size = len(context_list)
         queue = deque([], window_size)  
@@ -268,8 +256,7 @@ class CrossContextCandidateExtractorUDF(UDF):
                     ai, a = args[0]
                     bi, b = args[1]
 
-                    #Uncomment to only extract relations across window_size sentences
-                    if exclusive and abs(a.sentence.position - b.sentence.position) != window_size - 1:
+                    if (cand_lengths is not None) and (int(abs(a.sentence.position - b.sentence.position)+1) not in cand_lengths):
                         continue
 
                     # Check for self-joins, "nested" joins (joins from span to its subspan), and flipped duplicate
@@ -520,26 +507,14 @@ class CrossContextPretaggedCandidateExtractorUDF(UDF):
 
         super(CrossContextPretaggedCandidateExtractorUDF, self).__init__(**kwargs)
 
-    def apply(self, context_list, clear, split, window_size, exclusive=False, check_for_existing=True, **kwargs):
+    def apply(self, context_list, clear, split, window_size, cand_lengths=None, check_for_existing=True, **kwargs):
         """Extract Candidates from a list of contexts"""
         # For now, just handle Sentences
         if not isinstance(context_list[0], Sentence):
             raise NotImplementedError("CrossContextPretaggedCandidateExtractor is currently only implemented for Sentence contexts.")
-
-        # if 'window_size' not in kwargs:
-        #     window_size = 1
-        # elif isinstance(kwargs['window_size'], int) and kwargs['window_size'] >= 1:
-        #     window_size = kwargs['window_size']
-        # else:
-        #     raise ValueError('Window size must be an integer greater than 0.')
+        if cand_lengths is not None and any([cand_length <= 0 or cand_length > window_size for cand_length in cand_lengths]):
+            raise ValueError("One of more lengths for candidates is out range.")
             
-        # if 'thresholds' not in kwargs:
-        #     thresholds = [5 for i in range(self.arity)]
-        # elif isinstance(kwargs['thresholds'], list) and all( isinstance(i, int) and i >= 1 for i in kwargs['thresholds']):
-        #     thresholds = kwargs['thresholds']
-        # else:
-        #     raise ValueError('Thresholds must be a list of integers greater than 0.')
-
         list_size = len(context_list)
         queue = deque([], window_size)
         entity_cids  = {}  
@@ -611,8 +586,8 @@ class CrossContextPretaggedCandidateExtractorUDF(UDF):
                     ai, a = args[0]
                     bi, b = args[1]
 
-                    #Uncomment to only extract relations across window_size sentences
-                    if exclusive and abs(a.sentence.position - b.sentence.position) != window_size - 1:
+                    #Uncomment to only extract relations across the lengths specified in cand_lengths
+                    if (cand_lengths is not None) and (int(abs(a.sentence.position - b.sentence.position)+1) not in cand_lengths):
                         continue
 
 	                # Check for self-joins, "nested" joins (joins from span to its subspan), and flipped duplicate
