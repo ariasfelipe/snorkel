@@ -19,13 +19,16 @@
 * Documentation [here](http://snorkel.readthedocs.io/en/master/)
 
 ## Motivation
+
+**Check out a recent one-pager about [Snorkel and the Software 2.0 vision](https://cs.stanford.edu/~chrismre/papers/Chris_Re-KDD.pdf)!**
+
 Snorkel is a system for rapidly **creating, modeling, and managing training data**, currently focused on accelerating the development of _structured or "dark" data extraction applications_ for domains in which large labeled training sets are not available or easy to obtain.
 
 Today's state-of-the-art machine learning models require massive labeled training sets--which usually do not exist for real-world applications. Instead, Snorkel is based around the new [data programming](https://papers.nips.cc/paper/6523-data-programming-creating-large-training-sets-quickly) paradigm, in which the developer focuses on writing a set of labeling functions, which are just scripts that programmatically label data. The resulting labels are noisy, but Snorkel automatically models this process—learning, essentially, which labeling functions are more accurate than others—and then uses this to train an end model (for example, a deep neural network in TensorFlow).
 
 _Surprisingly_, by modeling a noisy training set creation process in this way, we can take potentially low-quality labeling functions from the user, and use these to train high-quality end models. We see Snorkel as providing a general framework for many [_weak supervision_](http://hazyresearch.github.io/snorkel/blog/weak_supervision.html) techniques, and as defining a new programming model for weakly-supervised machine learning systems.
 
-## Users
+## Users \& Sponsors
 We're lucky to have some amazing collaborators who are currently using Snorkel!
 
 <img src="figs/user_logos.png" width="500" height="200" align="middle" />
@@ -62,7 +65,7 @@ Then navigate to the root of the `snorkel` directory in a terminal and run the f
 conda env create --file=environment.yml
 
 # Activate the environment
-conda activate snorkel
+source activate snorkel
 
 # Install snorkel in the environment
 pip install .
