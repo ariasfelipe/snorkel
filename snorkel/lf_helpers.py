@@ -225,11 +225,14 @@ def get_dep_path(c, session):
     span1 = c[1]
     
     if span0.sentence.position < span1.sentence.position:
-        first_offset = span0.get_word_start() +1
+        first_offset = span0.get_word_start()+1
         second_offset = span1.get_word_start()+len(span0.sentence._asdict()['words']) +1
-    else:
-        first_offset = span1.get_word_start() +1
+    elif span0.sentence.position > span1.sentence.position:
+        first_offset = span1.get_word_start()+1
         second_offset = span0.get_word_start()+len(span1.sentence._asdict()['words'])+1
+    else:
+        first_offset = span0.get_word_start()+1
+        second_offset = span1.get_word_start()+1
 
     dep_heads, dep_labels, words = [], [], []
     sents = get_sentences(c, session)
@@ -265,7 +268,6 @@ def get_dep_path(c, session):
         if parent != 0:
             dep_tree[parent]['neighbors'].add(i)
               
-        
     return shortest_path(dep_tree, first_offset, second_offset)
 
 def cross_ctxt_get_right_tokens(c, session, window=3, attrib='words', n_max=1,

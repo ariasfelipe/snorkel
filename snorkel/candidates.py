@@ -535,20 +535,24 @@ class CrossContextPretaggedCandidateExtractorUDF(UDF):
 	        # Form entity Spans
             entity_spans = defaultdict(list)
             for et, cid_idxs in iteritems(entity_idxs):
-	            for cid, idxs in iteritems(entity_idxs[et]):
-	                while len(idxs) > 0:
-	                    i          = idxs.pop(0)
-	                    char_start = context.char_offsets[i]
-	                    char_end   = char_start + len(context.words[i]) - 1
-	                    while len(idxs) > 0 and idxs[0] == i + 1:
+                for cid, idxs in iteritems(entity_idxs[et]):
+                    while len(idxs) > 0:
+                        i          = idxs.pop(0)
+                        char_start = context.char_offsets[i]
+                        char_end   = char_start + len(context.words[i]) - 1
+
+                        if char_end - char_start <= 0:
+                            continue
+
+                        while len(idxs) > 0 and idxs[0] == i + 1:
 	                        i        = idxs.pop(0)
 	                        char_end = context.char_offsets[i] + len(context.words[i]) - 1
 
 	                    # Insert / load temporary span, also store map to entity CID
-	                    tc = TemporarySpan(char_start=char_start, char_end=char_end, sentence=context)
-	                    tc.load_id_or_insert(self.session)
-	                    entity_cids[tc.id] = cid
-	                    entity_spans[et].append(tc)
+                        tc = TemporarySpan(char_start=char_start, char_end=char_end, sentence=context)
+                        tc.load_id_or_insert(self.session)
+                        entity_cids[tc.id] = cid
+                        entity_spans[et].append(tc)
             queue.append(entity_spans)
 
 

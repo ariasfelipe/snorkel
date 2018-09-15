@@ -16,7 +16,7 @@ import torch.optim as optim
 
 from snorkel.learning.classifier import Classifier
 from snorkel.learning.utils import reshape_marginals, LabelBalancer
-
+from tensorboardX import SummaryWriter
 
 def cross_entropy_loss(input, target):
     total_loss = torch.tensor(0.0)
@@ -215,6 +215,7 @@ class TorchNoiseAwareModel(Classifier, nn.Module):
 
         dev_score_opt = 0.0
         batch_state = batch_size
+        writer = SummaryWriter('logdir')
 
         # Run mini-batch SGD
         for epoch in range(n_epochs):
@@ -251,6 +252,8 @@ class TorchNoiseAwareModel(Classifier, nn.Module):
                 self.optimizer.step()
                 
                 epoch_losses.append(calculated_loss)
+
+            writer.add_scalar('train_loss', torch.stack(epoch_losses).mean(), epoch+1)
             
             # Print training stats and optionally checkpoint model
             if verbose and (epoch % print_freq == 0 or epoch in [0, (n_epochs-1)]):
@@ -278,3 +281,5 @@ class TorchNoiseAwareModel(Classifier, nn.Module):
         # If checkpointing on, load last checkpoint (i.e. best on dev set)
         if dev_ckpt and X_dev is not None and verbose and dev_score_opt > 0:
             self.load(save_dir=save_dir)
+
+        writer.close()

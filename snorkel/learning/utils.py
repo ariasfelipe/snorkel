@@ -49,10 +49,13 @@ class LabelBalancer(object):
         self.y = np.ravel(y)
 
     def _get_pos(self, split):
-        return np.where(self.y > (split + 1e-6))[0]
+        # return np.where(self.y > (split + 1e-6))[0]
+        return np.where(self.y > 0.55)[0]
 
     def _get_neg(self, split):
-        return np.where(self.y < (split - 1e-6))[0]
+        # return np.where(self.y < (split - 1e-6))[0]
+        return np.where(self.y < 0.44)[0]
+
 
     def _try_frac(self, m, n, pn):
         # Return (a, b) s.t. a <= m, b <= n

@@ -3,6 +3,18 @@ from six.moves.cPickle import load
 
 from string import punctuation
 
+class color:
+   PURPLE = '\033[95m'
+   CYAN = '\033[96m'
+   DARKCYAN = '\033[36m'
+   BLUE = '\033[94m'
+   GREEN = '\033[92m'
+   YELLOW = '\033[93m'
+   RED = '\033[91m'
+   BOLD = '\033[1m'
+   UNDERLINE = '\033[4m'
+   END = '\033[0m'
+
 
 def offsets_to_token(left, right, offset_array, lemmas, punc=set(punctuation)):
     token_start, token_end = None, None
@@ -16,6 +28,21 @@ def offsets_to_token(left, right, offset_array, lemmas, punc=set(punctuation)):
     token_end = token_end - 1 if lemmas[token_end - 1] in punc else token_end
     return range(token_start, token_end)
 
+
+def print_bolded_mentions(sample):
+    if sample.disease.sentence.position <= sample.chemical.sentence.position:
+        first_mention = sample.disease
+        second_mention = sample.chemical
+    else:
+        first_mention = sample.chemical
+        second_mention = sample.disease
+        
+    first_sent = first_mention.sentence.text[:first_mention.char_start] + color.BOLD + first_mention.sentence.text[first_mention.char_start:first_mention.char_end+1].upper() + color.END + first_mention.sentence.text[first_mention.char_end+1:] 
+    second_sent = second_mention.sentence.text[:second_mention.char_start] + color.BOLD + second_mention.sentence.text[second_mention.char_start:second_mention.char_end+1].upper() + color.END + second_mention.sentence.text[second_mention.char_end+1:]
+
+    print(first_sent)
+    print('|||')
+    print(second_sent)
 
 class CDRTagger(object):
 

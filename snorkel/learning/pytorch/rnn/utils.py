@@ -8,8 +8,6 @@ from future.utils import iteritems
 from snorkel.utils import tokens_to_ngrams
 from snorkel.models import Sentence
 
-
-
 class SymbolTable(object):
     """Wrapper for dict to encode unknown symbols"""
     def __init__(self, starting_symbol=2, unknown_symbol=1): 
