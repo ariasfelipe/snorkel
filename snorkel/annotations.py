@@ -412,6 +412,8 @@ def load_feature_matrix(session, **kwargs):
 def load_gold_labels(session, annotator_name, **kwargs):
     return load_matrix(csr_LabelMatrix, GoldLabelKey, GoldLabel, session, key_names=[annotator_name], **kwargs)
 
+def load_gold_labels_array(session, annotator_name, **kwargs):
+    return load_matrix(csr_LabelMatrix, GoldLabelKey, GoldLabel, session, load_as_array=True, key_names=[annotator_name], **kwargs)
 
 class LabelAnnotator(Annotator):
     """Apply labeling functions to the candidates, generating Label annotations
