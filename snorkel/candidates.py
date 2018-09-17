@@ -5,7 +5,7 @@ from __future__ import unicode_literals
 from builtins import *
 from future.utils import iteritems
 
-from collections import defaultdict
+from collections import defaultdict, deque
 from copy import deepcopy
 from itertools import product
 import re
@@ -283,3 +283,159 @@ class PretaggedCandidateExtractorUDF(UDF):
 
             # Add Candidate to session
             yield self.candidate_class(**candidate_args)
+
+class CrossSentencePretaggedCandidateExtractor(UDFRunner):
+    """UDFRunner for CrossSentencePretaggedCandidateExtractorUDF"""
+    def __init__(self, candidate_class, entity_types, self_relations=False,
+     nested_relations=False, symmetric_relations=True, entity_sep='~@~'):
+        super(CrossSentencePretaggedCandidateExtractor, self).__init__(
+            CrossSentencePretaggedCandidateExtractorUDF, candidate_class=candidate_class,
+            entity_types=entity_types, self_relations=self_relations,
+            nested_relations=nested_relations, entity_sep=entity_sep,
+            symmetric_relations=symmetric_relations,
+        )
+     def apply(self, xs, split=0, **kwargs):
+        super(CrossSentencePretaggedCandidateExtractor, self).apply(xs, split=split, **kwargs)
+     def clear(self, session, split, **kwargs):
+        session.query(Candidate).filter(Candidate.split == split).delete()
+
+ class CrossSentencePretaggedCandidateExtractorUDF(UDF):
+    """
+    An extractor for Sentences with entities pre-tagged, and stored in the entity_types and entity_cids
+    fields.
+    """
+    def __init__(self, candidate_class, entity_types, self_relations=False, nested_relations=False, symmetric_relations=False, entity_sep='~@~', **kwargs):
+        self.candidate_class     = candidate_class
+        self.entity_types        = entity_types
+        self.arity               = len(entity_types)
+        self.self_relations      = self_relations
+        self.nested_relations    = nested_relations
+        self.symmetric_relations = symmetric_relations
+        self.entity_sep          = entity_sep
+         # Preallocates internal data structures
+        self.cand_sets = [None] * self.arity
+        for i in range(self.arity):
+            self.cand_sets[i] = set()
+         super(CrossSentencePretaggedCandidateExtractorUDF, self).__init__(**kwargs)
+     def apply(self, context_list, clear, split, window_size, cand_lengths=None, check_for_existing=True, **kwargs):
+        """Extract Candidates from a list of contexts"""
+        # For now, just handle Sentences
+        if not isinstance(context_list[0], Sentence):
+            raise NotImplementedError("CrossSentencePretaggedCandidateExtractor is currently only implemented for Sentence contexts.")
+        if cand_lengths is not None and any([cand_length <= 0 or cand_length > window_size for cand_length in cand_lengths]):
+            raise ValueError("One of more lengths for candidates is out range.")
+            
+        list_size = len(context_list)
+        queue = deque([], window_size)
+        entity_cids  = {}  
+         #Load queue
+        for i in range(min(window_size, list_size)):
+             context = context_list[i]
+            # Do a first pass to collect all mentions by entity type / cid
+            entity_idxs = dict((et, defaultdict(list)) for et in set(self.entity_types))
+            L = len(context.words)
+            for i in range(L):
+	            if context.entity_types[i] is not None:
+	                ets  = context.entity_types[i].split(self.entity_sep)
+	                cids = context.entity_cids[i].split(self.entity_sep)
+	                for et, cid in zip(ets, cids):
+	                    if et in entity_idxs:
+	                        entity_idxs[et][cid].append(i)
+ 	        # Form entity Spans
+            entity_spans = defaultdict(list)
+            for et, cid_idxs in iteritems(entity_idxs):
+                for cid, idxs in iteritems(entity_idxs[et]):
+                    while len(idxs) > 0:
+                        i          = idxs.pop(0)
+                        char_start = context.char_offsets[i]
+                        char_end   = char_start + len(context.words[i]) - 1
+                         if char_end - char_start <= 0:
+                            continue
+                         while len(idxs) > 0 and idxs[0] == i + 1:
+	                        i        = idxs.pop(0)
+	                        char_end = context.char_offsets[i] + len(context.words[i]) - 1
+ 	                    # Insert / load temporary span, also store map to entity CID
+                        tc = TemporarySpan(char_start=char_start, char_end=char_end, sentence=context)
+                        tc.load_id_or_insert(self.session)
+                        entity_cids[tc.id] = cid
+                        entity_spans[et].append(tc)
+            queue.append(entity_spans)
+ 	    #queue of dictonaries 
+         for context_index in range(list_size):
+            for i in range(self.arity):
+                self.cand_sets[i].clear()
+            #May have to concatenate/merge entity_cids to one dic
+            for entity_spans in queue:
+                for i, et in enumerate(self.entity_types):
+                    self.cand_sets[i].update(entity_spans[et])
+            lead_entity_span = queue.popleft()
+            potential_candidates = []
+            for i, et in enumerate(self.entity_types):
+                concatenated_set = self.cand_sets[i]
+                self.cand_sets[i] = lead_entity_span[et]
+                potential_candidates.extend(product(*[enumerate(cand_set) for cand_set in self.cand_sets]))
+                self.cand_sets[i] = concatenated_set.difference(lead_entity_span[et])
+ 	        # Generates and persists candidates
+            candidate_args = {'split' : split}
+            for args in potential_candidates:
+ 	            # TODO: Make this work for higher-order relations
+                if self.arity == 2:
+                    ai, a = args[0]
+                    bi, b = args[1]
+                     #Uncomment to only extract relations across the lengths specified in cand_lengths
+                    if (cand_lengths is not None) and (int(abs(a.sentence.position - b.sentence.position)+1) not in cand_lengths):
+                        continue
+ 	                # Check for self-joins, "nested" joins (joins from span to its subspan), and flipped duplicate
+	                # "symmetric" relations
+                    if not self.self_relations and a == b:
+                        continue
+                    elif not self.nested_relations and (a in b or b in a):
+                        continue
+                    elif not self.symmetric_relations and ai > bi:
+                        continue
+                    
+                for i, arg_name in enumerate(self.candidate_class.__argnames__):
+                    candidate_args[arg_name + '_id'] = args[i][1].id
+                    candidate_args[arg_name + '_cid'] = entity_cids[args[i][1].id]
+ 	            # Checking for existence
+                if check_for_existing:
+                    q = select([self.candidate_class.id])
+                    for key, value in iteritems(candidate_args):
+                        q = q.where(getattr(self.candidate_class, key) == value)
+                        candidate_id = self.session.execute(q).first()
+                        if candidate_id is not None:
+                            continue
+ 	            # Add Candidate to session
+                yield self.candidate_class(**candidate_args)
+ 	        #Load next item into the queue
+            window_offset = context_index + window_size
+            if window_offset < list_size:
+                context = context_list[window_offset]
+ 		        # Do a first pass to collect all mentions by entity type / cid
+                entity_idxs = dict((et, defaultdict(list)) for et in set(self.entity_types))
+                L = len(context.words)
+                for i in range(L):
+                    if context.entity_types[i] is not None:
+                        ets  = context.entity_types[i].split(self.entity_sep)
+                        cids = context.entity_cids[i].split(self.entity_sep)
+                        for et, cid in zip(ets, cids):
+                            if et in entity_idxs:
+                                entity_idxs[et][cid].append(i)
+ 		        # Form entity Spans
+                entity_spans = defaultdict(list)
+                for et, cid_idxs in iteritems(entity_idxs):
+                    for cid, idxs in iteritems(entity_idxs[et]):
+                        while len(idxs) > 0:
+                            i          = idxs.pop(0)
+                            char_start = context.char_offsets[i]
+                            char_end   = char_start + len(context.words[i]) - 1
+                            while len(idxs) > 0 and idxs[0] == i + 1:
+                                i        = idxs.pop(0)
+                                char_end = context.char_offsets[i] + len(context.words[i]) - 1
+ 		                    # Insert / load temporary span, also store map to entity CID
+                            tc = TemporarySpan(char_start=char_start, char_end=char_end, sentence=context)
+                            tc.load_id_or_insert(self.session)
+                            entity_cids[tc.id] = cid
+                            entity_spans[et].append(tc)
+                queue.append(entity_spans)
+
