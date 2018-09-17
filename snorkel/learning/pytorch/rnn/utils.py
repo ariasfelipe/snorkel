@@ -2,9 +2,11 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
+from itertools import chain
 from builtins import *
 from future.utils import iteritems
-
+from snorkel.utils import tokens_to_ngrams
+from snorkel.models import Sentence
 
 class SymbolTable(object):
     """Wrapper for dict to encode unknown symbols"""
@@ -31,11 +33,56 @@ class SymbolTable(object):
     def reverse(self):
         return {v: k for k, v in iteritems(self.d)}
 
+#Global to enable database access
+session = None
+
+def enable_session(snorkel_session):
+    session = snorkel_session
+
+def get_sentences(c):
+    """
+    Returns an ordered list of all the sentences associated with the candidate
+    """
+    parents = c.get_unique_parents()
+    if len(parents) == 1:
+        return [parents[0]]   
+    elif len(parents) == 2:
+        return [parents[0], parents[1]] if parents[0].position < parents[1].position else [parents[1], parents[0]]
+    else:
+        doc_id = parents[0].document_id
+        positions = [parent.position for parent in parents]
+        first_idx = min(positions)
+        last_idx = max(positions)
+        return session.query(Sentence).filter(Sentence.document_id == doc_id).filter(Sentence.position >= first_idx).filter(Sentence.position <= last_idx).oder_by(Sentence.position).all()
+
+def get_all_tokens(c, session, attrib='words', n_max=1, case_sensitive=False):
+    """Returns a generator to all the tokens in a candidate (cross sentence enabled)"""
+    sentences = get_sentences(c)
+    f = (lambda w: w) if case_sensitive else (lambda w: w.lower())
+    return chain(*[tokens_to_ngrams(list(map(f, sentence._asdict()[attrib][:])), n_max=n_max) for sentence in sentences])
 
 def scrub(s):
     return ''.join(c for c in s if ord(c) < 128)
 
-
 def candidate_to_tokens(candidate, token_type='words'):
-    tokens = candidate.get_parent().__dict__[token_type]
+    if session is None and len(candidate.get_unique_parents()) > 2:
+        raise ValueError('Session must be enabled with enable_session(snorkel_session) for cross context candidates')
+    tokens = get_all_tokens(candidate, session, attrib=token_type)  
     return [scrub(w).lower() for w in tokens]
+
+def create_candidate_args(candidate):
+    context_list = [(span.sentence.position, span) for span in candidate.get_contexts()]
+    context_list.sort(key=lambda x: x[0])
+    position_offset = context_list[0][0]
+    word_offsets = []
+    word_offsets.append(0)
+    word_count = 0
+    for i in range(len(context_list)-1):
+        if context_list[i][0] != context_list[i+1][0]:
+            word_count += len(context_list[i][1].sentence.words)
+            word_offsets.append(word_count) 
+     args = [
+        (candidate[0].get_word_start() + word_offsets[candidate[0].sentence.position - position_offset], candidate[0].get_word_end() + word_offsets[candidate[0].sentence.position - position_offset], 1),
+        (candidate[1].get_word_start() + word_offsets[candidate[1].sentence.position - position_offset], candidate[1].get_word_end() + word_offsets[candidate[1].sentence.position - position_offset], 2)
+    ]
+    return args

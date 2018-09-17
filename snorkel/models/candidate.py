@@ -38,10 +38,24 @@ class Candidate(SnorkelBase):
     def get_contexts(self):
         """Get a tuple of the consituent contexts making up this candidate"""
         return tuple(getattr(self, name) for name in self.__argnames__)
+    
+    def get_parents(self):
+        """Get list of contexts' parents"""
+        return [c.get_parent() for c in self.get_contexts()]
+
+    def is_parent_unique(self):
+        """True if all contexts have the same parent"""
+        p = self.get_parents()
+        return True if p.count(p[0]) == len(p) else False
+
+    def get_unique_parents(self):
+        """Get list of unique parents"""
+        p = self.get_parents()
+        return list(set(p))
 
     def get_parent(self):
         # Fails if both contexts don't have same parent
-        p = [c.get_parent() for c in self.get_contexts()]
+        p = self.get_parents()
         if p.count(p[0]) == len(p):
             return p[0]
         else:
