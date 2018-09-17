@@ -294,12 +294,12 @@ class CrossSentencePretaggedCandidateExtractor(UDFRunner):
             nested_relations=nested_relations, entity_sep=entity_sep,
             symmetric_relations=symmetric_relations,
         )
-     def apply(self, xs, split=0, **kwargs):
+    def apply(self, xs, split=0, **kwargs):
         super(CrossSentencePretaggedCandidateExtractor, self).apply(xs, split=split, **kwargs)
-     def clear(self, session, split, **kwargs):
+    def clear(self, session, split, **kwargs):
         session.query(Candidate).filter(Candidate.split == split).delete()
 
- class CrossSentencePretaggedCandidateExtractorUDF(UDF):
+class CrossSentencePretaggedCandidateExtractorUDF(UDF):
     """
     An extractor for Sentences with entities pre-tagged, and stored in the entity_types and entity_cids
     fields.
@@ -316,8 +316,8 @@ class CrossSentencePretaggedCandidateExtractor(UDFRunner):
         self.cand_sets = [None] * self.arity
         for i in range(self.arity):
             self.cand_sets[i] = set()
-         super(CrossSentencePretaggedCandidateExtractorUDF, self).__init__(**kwargs)
-     def apply(self, context_list, clear, split, window_size, cand_lengths=None, check_for_existing=True, **kwargs):
+        super(CrossSentencePretaggedCandidateExtractorUDF, self).__init__(**kwargs)
+    def apply(self, context_list, clear, split, window_size, cand_lengths=None, check_for_existing=True, **kwargs):
         """Extract Candidates from a list of contexts"""
         # For now, just handle Sentences
         if not isinstance(context_list[0], Sentence):
@@ -328,9 +328,9 @@ class CrossSentencePretaggedCandidateExtractor(UDFRunner):
         list_size = len(context_list)
         queue = deque([], window_size)
         entity_cids  = {}  
-         #Load queue
+        #Load queue
         for i in range(min(window_size, list_size)):
-             context = context_list[i]
+            context = context_list[i]
             # Do a first pass to collect all mentions by entity type / cid
             entity_idxs = dict((et, defaultdict(list)) for et in set(self.entity_types))
             L = len(context.words)
@@ -349,9 +349,9 @@ class CrossSentencePretaggedCandidateExtractor(UDFRunner):
                         i          = idxs.pop(0)
                         char_start = context.char_offsets[i]
                         char_end   = char_start + len(context.words[i]) - 1
-                         if char_end - char_start <= 0:
+                        if char_end - char_start <= 0:
                             continue
-                         while len(idxs) > 0 and idxs[0] == i + 1:
+                        while len(idxs) > 0 and idxs[0] == i + 1:
 	                        i        = idxs.pop(0)
 	                        char_end = context.char_offsets[i] + len(context.words[i]) - 1
  	                    # Insert / load temporary span, also store map to entity CID
@@ -361,7 +361,7 @@ class CrossSentencePretaggedCandidateExtractor(UDFRunner):
                         entity_spans[et].append(tc)
             queue.append(entity_spans)
  	    #queue of dictonaries 
-         for context_index in range(list_size):
+        for context_index in range(list_size):
             for i in range(self.arity):
                 self.cand_sets[i].clear()
             #May have to concatenate/merge entity_cids to one dic
