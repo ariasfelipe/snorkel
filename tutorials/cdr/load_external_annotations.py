@@ -15,7 +15,7 @@ def load_external_labels(session, candidate_class, split, annotator='gold',
     ).all()
     for c in candidates:
         # Get the label by mapping document annotations to mentions
-        doc_relations = relations.get(c.get_parent().get_parent().name, set())
+        doc_relations = relations.get(c.get_parents()[0].get_parent().name, set())
         label = 2 * int(c.get_cids() in doc_relations) - 1        
         # Get stable ids and check to see if label already exits
         context_stable_ids = '~~'.join(x.get_stable_id() for x in c)

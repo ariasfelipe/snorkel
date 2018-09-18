@@ -371,7 +371,7 @@ def shortest_path(graph, start, goal):
                 queue.append((node, path + [node]))
 
 
- def get_dep_path(c, session):
+def get_dep_path(c, session):
     span0 = c[0]
     span1 = c[1]
     
