@@ -81,7 +81,7 @@ def create_candidate_args(candidate):
         if context_list[i][0] != context_list[i+1][0]:
             word_count += len(context_list[i][1].sentence.words)
             word_offsets.append(word_count) 
-     args = [
+    args = [
         (candidate[0].get_word_start() + word_offsets[candidate[0].sentence.position - position_offset], candidate[0].get_word_end() + word_offsets[candidate[0].sentence.position - position_offset], 1),
         (candidate[1].get_word_start() + word_offsets[candidate[1].sentence.position - position_offset], candidate[1].get_word_end() + word_offsets[candidate[1].sentence.position - position_offset], 2)
     ]
